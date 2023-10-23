@@ -1,6 +1,6 @@
 # Development
 
-Coulibaly Aboubacar developed this R Shiny application, which can be used and redistributed As long as you've received the acknowledgment. 
+ This R Shiny application was developed by Coulibaly Aboubacar and can be used and redistributed,  as long as proper acknowledgment is given.
 
 # Disclaimer
 This application may use artificially generated synthetic data designed to resemble real-world data. Synthetic data is created for the purpose of testing, simulation, or 
