@@ -1,0 +1,323 @@
+
+---
+title: "City Coverage and Acceptance Rate Dashboard"
+runtime: shiny
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: row
+    vertical_layout: fill
+    theme:
+      bg: "#202123"
+      fg: "#B8BCC2"
+      primary: "#EA80FC"
+      base_font:
+        google: Prompt
+      heading_font:
+        google: Proza Libre
+      version: 4
+---
+
+
+---
+```{r setup, include=FALSE}
+if (requireNamespace("thematic")) 
+  thematic::thematic_rmd(font = "auto")
+library(flexdashboard)
+library(readxl)
+library(lubridate)
+library(shiny)
+library(plyr)
+library(dplyr)
+library(tidyr)
+library(plotly)
+library(DT)
+library(leaflet)
+library(ggplot2)
+library(lubridate)
+library(leaflet)
+library(leaflet.extras)
+```
+
+```{r load_prep_data}
+CityCoverageData <- read_excel("ctcoverage.xlsx")
+```
+Sidebar {.sidebar}
+=======================================================================
+```{r}
+dateRangeInput("date_range",
+"Select Date:",
+min = min(CityCoverageData$Date),
+start = min(CityCoverageData$Date))
+ # No value provided for max or end so today's date is used (default)
+```
+
+```{r}
+selectInput("City",
+"Select City:",
+choices = unique(CityCoverageData$CITY),
+selectize = TRUE,
+multiple = TRUE,
+selected = c("CHICAGO","NEW YORK"))
+#selected = c("MOMBASA"))
+```
+```{r}
+selectInput("Category",
+"Select Category:",
+choices = unique(CityCoverageData$Category),
+selectize = TRUE,
+multiple = TRUE,
+selected = unique(CityCoverageData$Category))
+```
+```{r}
+selectInput("V.Type",  "Select Vehicle Type", 
+choices = unique(CityCoverageData$VEHICLETYPE),
+multiple = TRUE,
+selectize = TRUE,
+selected = unique(CityCoverageData$VEHICLETYPE))
+```
+```{r}
+selectInput("TRIPTYPE",  "Select Trip Type", 
+choices = unique(CityCoverageData$TRIPTYPE),
+multiple = TRUE,
+selectize = TRUE,
+selected = unique(CityCoverageData$TRIPTYPE))
+```
+```{r reactive}
+#Create reative dataframe to filter by inputs
+CityCoverageData_reactive <- reactive({
+# Apply inputs as filter criteria
+df <- CityCoverageData %>% 
+filter(Date >= input$date_range[1] & Date <= input$date_range[2]) %>%
+filter(CITY %in% input$City) %>%
+filter(VEHICLETYPE %in% input$V.Type) %>%
+filter(Category %in% input$Category) %>%
+filter (TRIPTYPE %in% input$TRIPTYPE) %>%
+return(df)})
+```
+
+
+Dashboard
+=======================================================================
+Row 
+-----------------------------------------------------------------------
+### Acceptance Rate
+```{r}
+renderValueBox({
+# Calculate Acceptance Rate
+Total_Acceptance_Request <- (length(which(CityCoverageData_reactive()$Category == 'Trips'))+
+                               length(which(CityCoverageData_reactive()$Category == 'Driver Cancellation'))+length(which(CityCoverageData_reactive()$Category == 'Rider Cancellation'))+
+                               length(which(CityCoverageData_reactive()$Category == 'Timeout')))
+Acceptance_Request <- (length(which(CityCoverageData_reactive()$Category == 'Trips')))
+Acceptance_Rate <- (Acceptance_Request / Total_Acceptance_Request)*100
+
+valueBox("Acceptance Rate", value = paste0(round(Acceptance_Rate,0),'%'), icon="fa-percent", color = "olive")
+})
+```
+
+### Fuflilment Rate
+```{r}
+renderValueBox({
+# Calculate Fulfillment Rate
+Total_Trips_Request <- (length(which(CityCoverageData_reactive()$Category == 'Trips'))+
+length(which(CityCoverageData_reactive()$Category == 'Driver Cancellation'))+
+length(which(CityCoverageData_reactive()$Category == 'Rider Cancellation'))+
+length(which(CityCoverageData_reactive()$Category == 'No Drivers Found')))
+Trips_Request <- (length(which(CityCoverageData_reactive()$Category == 'Trips')))
+Fulfilment_Rate <- (Trips_Request / Total_Trips_Request)*100
+valueBox("Fulfillment Rate", value = paste0(round(Fulfilment_Rate,0),'%'), icon="fa-percent", color = "green")
+})
+```
+
+### Driver Cancellation Rate
+```{r}
+renderValueBox({
+# Calculate Fulfillment Rate
+Total_Trips_Request <- (length(which(CityCoverageData_reactive()$Category == 'Trips'))+
+length(which(CityCoverageData_reactive()$Category == 'Driver Cancellation'))+
+length(which(CityCoverageData_reactive()$Category == 'Rider Cancellation'))+
+length(which(CityCoverageData_reactive()$Category == 'No Drivers Found')))
+Trips_Request <- (length(which(CityCoverageData_reactive()$Category == 'Driver Cancellation')))
+Fulfilment_Rate <- (Trips_Request / Total_Trips_Request)*100
+valueBox("Driver Cancellation Rate", value = paste0(round(Fulfilment_Rate,0),'%'), icon="fa-percent", color = "grey")
+})
+```
+
+Row 
+-----------------------------------------------------------------------
+
+### Rider Cancellation Rate
+```{r}
+renderValueBox({
+# Calculate Fulfillment Rate
+Total_Trips_Request <- (length(which(CityCoverageData_reactive()$Category == 'Trips'))+
+length(which(CityCoverageData_reactive()$Category == 'Driver Cancellation'))+
+length(which(CityCoverageData_reactive()$Category == 'Rider Cancellation'))+
+length(which(CityCoverageData_reactive()$Category == 'No Drivers Found')))
+Trips_Request <- (length(which(CityCoverageData_reactive()$Category == 'Rider Cancellation')))
+Fulfilment_Rate <- (Trips_Request / Total_Trips_Request)*100
+valueBox("Rider Cancellation Rate", value = paste0(round(Fulfilment_Rate,0),'%'), icon="fa-percent", color = "steelblue")
+})
+```
+
+### No Driver Found Rate
+```{r}
+renderValueBox({
+# Calculate No Driver Found Rate
+Total_Trips_Request <- (length(which(CityCoverageData_reactive()$Category == 'Trips'))+
+length(which(CityCoverageData_reactive()$Category == 'Driver Cancellation'))+
+length(which(CityCoverageData_reactive()$Category == 'Rider Cancellation'))+
+length(which(CityCoverageData_reactive()$Category == 'No Drivers Found')))
+Trips_Request <- (length(which(CityCoverageData_reactive()$Category == 'No Drivers Found')))
+Fulfilment_Rate <- (Trips_Request / Total_Trips_Request)*100
+valueBox("No Driver Found Rate", value = paste0(round(Fulfilment_Rate,0),'%'), icon="fa-percent", color = "purple")
+})
+```
+
+### Timeout Rate
+```{r}
+renderValueBox({
+# Calculate Timeout Rate
+Total_Trips_Request <- (length(which(CityCoverageData_reactive()$Category == 'Trips'))+
+length(which(CityCoverageData_reactive()$Category == 'Timeout')))
+Trips_Request <- (length(which(CityCoverageData_reactive()$Category == 'Timeout')))
+Fulfilment_Rate <- (Trips_Request / Total_Trips_Request)*100
+valueBox("Timeout Rate", value = paste0(round(Fulfilment_Rate,0),'%'), icon="fa-percent", color = "maroon")
+})
+```
+
+Row {.tabset .tabset-fade} {data-height=1200}
+-----------------------------------------------------------------------
+```{r}
+leaflet::renderLeaflet({
+CityCoverageData_reactive()%>%
+leaflet() %>%
+addTiles() %>% 
+addSearchOSM()%>%
+#addReverseSearchOSM()%>%
+addResetMapButton()%>%
+addMarkers(
+clusterOptions = markerClusterOptions()
+)%>%
+addLayersControl(overlayGroups = unique(CityCoverageData$Category))
+})
+```
+
+Fulfillment Rate
+=======================================================================
+Row 
+-----------------------------------------------------------------------
+
+### Fulfillment Rate
+```{r}
+renderDataTable({
+data_table <- CityCoverageData %>%
+filter(Date >= input$date_range[1] & Date <= input$date_range[2]) %>%
+filter(CITY %in% input$City) %>%
+filter(VEHICLETYPE %in% input$V.Type) %>%
+filter(Category %in% input$Category) %>%
+filter (TRIPTYPE %in% input$TRIPTYPE) %>%
+group_by(user_id) %>%
+summarize(count_of_trips = (length(which(Category == 'Trips'))),
+          driver_cancellation = (length(which(Category == 'Driver Cancellation'))),
+          rider_cancellation = (length(which(Category == 'Rider Cancellation'))),
+          total_request = count_of_trips + driver_cancellation + rider_cancellation,
+          fulfillment_rate = paste(round((count_of_trips / total_request * 100)),'%')
+          
+)
+datatable(data_table,
+rownames = F,
+extensions = 'Buttons',
+options = list(pageLength = 100, 
+scrollX = T,
+filter = "bottom",
+dom = 'Bfrtip',
+ buttons = c('csv', 'copy', 'print')
+))
+})
+```
+
+Acceptance Rate
+=======================================================================
+Row 
+-----------------------------------------------------------------------
+
+### Acceptance Rate
+```{r}
+renderDataTable({
+data_table <- CityCoverageData %>%
+filter(Date >= input$date_range[1] & Date <= input$date_range[2]) %>%
+filter(CITY %in% input$City) %>%
+filter(VEHICLETYPE %in% input$V.Type) %>%
+filter(Category %in% input$Category) %>%
+filter (TRIPTYPE %in% input$TRIPTYPE) %>%
+group_by(user_id) %>%
+summarize(count_of_trips = (length(which(Category == 'Trips'))),
+          driver_cancellation = (length(which(Category == 'Driver Cancellation'))),
+          rider_cancellation = (length(which(Category == 'Rider Cancellation'))),
+          timeout = (length(which(Category == 'Timeout'))),
+          total_request = count_of_trips + driver_cancellation + rider_cancellation + timeout,
+          acceptance_rate = paste(round((count_of_trips / total_request * 100)),'%')
+          
+)
+datatable(data_table,
+rownames = F,
+extensions = 'Buttons',
+options = list(pageLength = 100, 
+scrollX = T,
+filter = "bottom",
+dom = 'Bfrtip',
+ buttons = c('csv', 'copy', 'print')
+))
+})
+```
+
+Fulfillment_by_day {data-navmenu="Fulfiment Trends" data-icon="fa-list"}
+=======================================================================
+
+
+
+```{r}
+renderPlotly({
+by_day <- CityCoverageData %>%
+filter(Date >= input$date_range[1] & Date <= input$date_range[2]) %>%
+filter(CITY %in% input$City) %>%
+filter(VEHICLETYPE %in% input$V.Type) %>%
+filter(Category %in% input$Category) %>%
+filter (TRIPTYPE %in% input$TRIPTYPE) %>%
+group_by(Date)%>%
+  summarize(count_of_trips = (length(which(Category == 'Trips'))),
+          driver_cancellation = (length(which(Category == 'Driver Cancellation'))),
+          rider_cancellation = (length(which(Category == 'Rider Cancellation'))),
+          nodriverfound = (length(which(Category == 'No Drivers Found'))),
+          total_request = count_of_trips + driver_cancellation + rider_cancellation + nodriverfound ,
+          fulfillment_rate = round((count_of_trips / total_request * 100)),'%')
+ggplot(by_day, aes(x=Date, y=fulfillment_rate))+geom_line()+coord_cartesian(y = c(10, 100))
+})
+```
+
+
+Fulfillment_by_hour {data-navmenu="Fulfiment Trends" data-icon="fa-list"}
+=======================================================================
+
+
+
+```{r}
+renderPlotly({
+by_Hour <- CityCoverageData %>%
+filter(Date >= input$date_range[1] & Date <= input$date_range[2]) %>%
+filter(CITY %in% input$City) %>%
+filter(VEHICLETYPE %in% input$V.Type) %>%
+filter(Category %in% input$Category) %>%
+filter (TRIPTYPE %in% input$TRIPTYPE) %>%
+group_by(Hour)%>%
+summarize(count_of_trips = (length(which(Category == 'Trips'))),
+          driver_cancellation = (length(which(Category == 'Driver Cancellation'))),
+          rider_cancellation = (length(which(Category == 'Rider Cancellation'))),
+          nodriverfound = (length(which(Category == 'No Drivers Found'))),
+          total_request = count_of_trips + driver_cancellation + rider_cancellation + nodriverfound ,
+          fulfillment_rate = round((count_of_trips / total_request * 100)),'%')
+  ggplot(by_Hour, aes(x=Hour, y=fulfillment_rate))+
+  geom_line() +
+coord_cartesian(y = c(10, 100))
+})
+```
